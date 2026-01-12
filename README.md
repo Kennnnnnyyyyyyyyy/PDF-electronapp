@@ -86,7 +86,3 @@ cd apps/desktop
 npm run build
 ```
 The output will be generated in the `dist` or `release` folder.
-
-## 📄 License
-
-[MIT](LICENSE)
