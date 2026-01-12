@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+packages/*/obj/
+packages/*/bin/
+apps/*/obj/
+apps/*/bin/
+
+# Build outputs
+dist/
+dist-electron/
+out/
+build/
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+*.sln.DotSettings.user
+
+# Enviroment
+.env
+.env.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Dotnet
+[Bb]in/
+[Oo]bj/
+app.db
+*.user
+*.suo
