@@ -1,88 +1,293 @@
-# Digital Logbook (Electron + .NET)
+# Open-Source Cross-Platform PDF Annotator
 
-A cross-platform desktop application for digital logbook recording, built with Electron, React, and .NET 8.
+A **Preview-like, open-source PDF annotation and form-filling desktop application** for **Windows and macOS**.
 
-## 🚀 Features
+This project focuses on **reliable, drift-free PDF editing** using correct PDF coordinate handling. It supports flat PDFs (like IRS W-8BEN), AcroForm PDFs, and provides a consistent annotation experience similar to macOS Preview — without relying on proprietary SDKs.
 
-- **Digital Inking**: Draw naturally on PDF templates using a stylus or mouse.
-- **Form Filling**: Automatically detects and lets you fill out PDF form fields.
-- **Cloud Sync**: Save your drafts and projects to the self-hosted backend.
-- **Project Management**: Organize your work into projects (templates) and versioned drafts.
-- **Export**: detailed PDF export with high-quality vector annotations.
-- **Authentication**: Secure user accounts with JWT authentication.
+---
 
-## 🛠️ Tech Stack
+## Features
 
-- **Frontend (Desktop)**:
-  - [Electron](https://www.electronjs.org/)
-  - [React](https://react.dev/) + [Vite](https://vitejs.dev/)
-  - [TypeScript](https://www.typescriptlang.org/)
-  - [Tailwind CSS](https://tailwindcss.com/)
-  - [react-pdf](https://github.com/wojtekmaj/react-pdf)
+* Cross-platform desktop app (Windows + macOS)
+* Open and render any PDF
+* Preview-style type-anywhere text annotations
+* Ink / signature drawing (freehand)
+* Stable annotation placement (no shifting or drifting)
+* Save & reload editable annotations
+* Export filled / flattened PDF
+* Optional backend for upload, storage, retrieval
+* Optional JWT-based authentication stub
 
-- **Backend (API)**:
-  - [.NET 8 Web API](https://dotnet.microsoft.com/)
-  - [Entity Framework Core](https://learn.microsoft.com/en-us/ef/core/)
-  - [SQLite](https://www.sqlite.org/)
-  - [iText7](https://itextpdf.com/) (PDF Processing)
+---
 
-## 📂 Project Structure
+## Core Design Principle
+
+All annotations are stored in **PDF coordinates (points)**, not screen pixels.
+
+This guarantees:
+
+* No misalignment on zoom
+* No drift after reload
+* Consistent export across platforms
+
+This is the same principle used internally by professional PDF tools.
+
+---
+
+## Architecture Overview
 
 ```
-/
-├── apps/
-│   ├── desktop/      # Electron Client
-│   └── api/          # ASP.NET Core API
-├── packages/         # Shared Libraries
-│   ├── backend.core
-│   ├── backend.data
-│   └── ...
-└── DigitalLogbook.sln
+Desktop App (Electron / Tauri)
+│
+├── PDF Rendering        → PDF.js
+├── Annotation Layer    → HTML + Canvas overlay
+├── Coordinate Mapping  → PDF points ↔ viewport pixels
+├── Export Engine       → pdf-lib (flattened stamping)
+└── Storage
+    ├── Local JSON (annotations)
+    └── Optional Backend API (PDF + JSON)
 ```
 
-## ⚡ Getting Started
+---
 
-### Prerequisites
+## Tech Stack
 
-- **Node.js** (v18 or higher)
-- **.NET SDK** (v8.0)
+### Desktop App
 
-### 1. Setup Backend
+* Electron (recommended) or Tauri
+* PDF.js – PDF rendering
+* pdf-lib – PDF writing / stamping
+* React (or any UI framework)
 
-The backend handles authentication, file storage, and PDF processing.
+### Backend (Optional)
+
+* Node.js + Express
+* JWT (auth stub)
+* Local filesystem storage (MVP)
+
+All dependencies are open-source friendly.
+
+---
+
+## Prerequisites
+
+### Required
+
+* Node.js ≥ 18.x
+* npm or pnpm
+* Git
+
+### For Desktop Builds
+
+* macOS: Xcode Command Line Tools
+* Windows: Windows Build Tools (for Electron packaging)
+
+### Optional
+
+* Docker (if running backend separately)
+
+---
+
+## Repository Structure
+
+```
+/apps
+  /desktop
+    /src
+      /pdf            # PDF.js rendering utilities
+      /annotations    # Annotation model + overlay UI
+      /export         # pdf-lib stamping logic
+      /storage        # Save / load JSON annotations
+    /public
+  /server             # Optional backend API
+/docs
+README.md
+```
+
+---
+
+## Setup & Run (Desktop App)
+
+### Clone the repository
 
 ```bash
-# Restore dependencies
-dotnet restore
-
-# Initialize the database (SQLite)
-dotnet ef database update --project apps/api/DigitalLogbook.Api.csproj
-
-# Run the API
-dotnet run --project apps/api/DigitalLogbook.Api.csproj --urls "http://localhost:5263"
+git clone https://github.com/your-org/pdf-annotator.git
+cd pdf-annotator/apps/desktop
 ```
-The API will be available at `http://localhost:5263`.
 
-### 2. Setup Desktop App
-
-Open a new terminal for the frontend.
+### Install dependencies
 
 ```bash
-cd apps/desktop
-
-# Install dependencies
 npm install
+```
 
-# Start the Electron development app
+### Run in development mode
+
+```bash
 npm run dev
 ```
 
-## 📦 Building for Production
+This launches the Electron app in development mode.
 
-To create a distributable installer for your OS:
+### Build desktop app
 
 ```bash
-cd apps/desktop
 npm run build
 ```
-The output will be generated in the `dist` or `release` folder.
+
+Build artifacts will be generated for your platform.
+
+---
+
+## Annotation Model
+
+Annotations are stored in PDF coordinate space:
+
+```json
+{
+  "id": "a1",
+  "type": "text",
+  "pageIndex": 0,
+  "xPt": 144.2,
+  "yPt": 512.6,
+  "widthPt": 220,
+  "heightPt": 18,
+  "fontSizePt": 10,
+  "text": "John Doe"
+}
+```
+
+* Units: PDF points
+* Origin: bottom-left of page
+* Screen pixels are derived only during rendering
+
+---
+
+## Coordinate Conversion
+
+PDF.js provides canonical helpers:
+
+### PDF to Screen
+
+```js
+viewport.convertToViewportPoint(xPt, yPt)
+```
+
+### Screen to PDF
+
+```js
+viewport.convertToPdfPoint(xPx, yPx)
+```
+
+Never store CSS pixel positions.
+
+---
+
+## Exporting the PDF
+
+When the user exports:
+
+1. Load original PDF
+2. Iterate annotations
+3. Stamp text / ink using pdf-lib
+4. Save as flattened PDF
+
+The result works in any PDF viewer.
+
+---
+
+## PDF Type Detection
+
+On load, PDFs are classified as:
+
+| Type     | Handling                   |
+| -------- | -------------------------- |
+| AcroForm | Optional native field fill |
+| XFA      | Treated as flat or warned  |
+| Flat     | Annotation + stamping      |
+
+XFA is not supported natively in browsers.
+
+---
+
+## Optional Backend Setup
+
+### Navigate to server
+
+```bash
+cd apps/server
+```
+
+### Install dependencies
+
+```bash
+npm install
+```
+
+### Run backend
+
+```bash
+npm run dev
+```
+
+Backend runs at `http://localhost:4000`.
+
+---
+
+## Backend API (MVP)
+
+| Method | Endpoint                  | Description  |
+| ------ | ------------------------- | ------------ |
+| POST   | /auth/login               | Returns JWT  |
+| POST   | /api/docs/:id/upload      | Upload PDF   |
+| GET    | /api/docs/:id             | Download PDF |
+| POST   | /api/docs/:id/annotations | Save JSON    |
+| GET    | /api/docs/:id/annotations | Load JSON    |
+
+---
+
+## Known Limitations
+
+* No native XFA form filling
+* No advanced text reflow
+* Flattened export only (by design)
+* Annotation UX is MVP-level and will improve over time
+
+---
+
+## License
+
+MIT License (recommended for maximum reuse)
+
+---
+
+## Contributing
+
+Contributions are welcome:
+
+* Bug fixes
+* Annotation UX improvements
+* Performance optimizations
+* Documentation
+
+Please open an issue or pull request.
+
+---
+
+## Philosophy
+
+This project prioritizes:
+
+* Correct PDF math
+* Predictable behavior
+* Open-source transparency
+
+If annotations do not move when you zoom, the architecture is correct.
+
+---
+
+## Credits
+
+* Mozilla PDF.js
+* pdf-lib
+* Electron / Tauri communities
